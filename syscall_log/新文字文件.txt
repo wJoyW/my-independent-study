@@ -1,0 +1,120 @@
+    ismal = []
+    pdata = []
+    err = []
+    cmd = ""
+    c = -1
+    pattern = re.compile('(\s)+=(\s)+(\d)+')
+    ques_pattern = re.compile('(\s)+=(\s)+?')
+    process_attach = False
+
+    for line in log:
+        c += 1
+        
+        if process_attach:
+            if line.find('[SCAN_START]') != -1:
+                ismal.pop(-1)
+                cmd = ""
+
+                if line.find('CMD=') != -1:
+                    temp = line.split('CMD=')[1]
+                    end = temp.find(',')
+                    cmd += temp[1:end]
+
+                if line.find('MAL=') != -1:
+                    if line.split('MAL=')[1][0] == '0':
+                        ismal.append(False)
+                    else:
+                        ismal.append(True)
+
+                    if len(ismal) - len(pdata) >= 2:
+                        print(c)
+                        n = input('PAUSE')
+
+            elif re.search(pattern, line) != None:
+                start = line.find(" ")
+                end = line.find(re.search(pattern, line)[0])
+                cmd += line[start : end]
+
+            elif re.search(ques_pattern, line) != None:
+                start = line.find(" ")
+                end = line.find(re.search(ques_pattern, line)[0])
+                cmd += line[start : end]
+
+            elif line.find('+++') or line.find('---'):
+                process_attach = False
+
+                if len(cmd) != 0:
+                    pdata.append(cmd)
+                else:
+                    ismal.pop(-1)
+
+                cmd = ""
+
+            elif line.find('No such process') != -1:
+                process_attach = False
+                ismal.pop(-1)
+                cmd = ""
+
+            elif line.find('Operation not permitted') or line.find("Invalid argument"):
+                process_attach = False
+                cmd = ""
+                ismal.pop(-1)
+
+            elif line.find('timeout: '):
+                process_attach = False
+                ismal.pop(-1)
+                cmd = ""
+
+            elif (line.find("strace: Process") != -1 and line.find("detached") != -1) or line.find('+++ exited with 0 +++') != -1:
+                process_attach = False
+
+                if len(cmd) != 0:
+                    pdata.append(cmd)
+                else:
+                    ismal.pop(-1)
+
+                cmd = ""
+
+        else:
+            if line.find('[SCAN_START]') != -1:
+                if line.find('CMD=') != -1:
+                    temp = line.split('CMD=')[1]
+                    end = temp.find(',')
+                    cmd += temp[1:end - 1]
+
+                if line.find('MAL=') != -1:
+                    if line.split('MAL=')[1][0] == '0':
+                        ismal.append(False)
+                    else:
+                        ismal.append(True)
+
+                    if len(ismal) - len(pdata) >= 2:
+                        print(c)
+                        #print(line)
+                        n = input('PAUSE')
+            
+            elif line.find("strace: Process") != -1 and line.find('attached') != -1:
+                process_attach = True
+
+            elif line.find('No such process') != -1:
+                process_attach = False
+                ismal.pop(-1)
+
+            elif line.find('timeout:') != -1:
+                process_attach = False
+                ismal.pop(-1)
+                cmd = ""
+
+            elif line.find(" <detached ...>") != -1 or line.find("Invalid argument") != -1:
+                process_attach = False
+
+            elif line.find('Operation not permitted') != -1:
+                process_attach = False
+                ismal.pop(-1)
+                cmd = ""
+
+            else:
+                err.append(line)
+
+    
+    return pdata, ismal, err
